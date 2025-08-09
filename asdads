@@ -258,11 +258,11 @@ local goldESP = sector2.element('Toggle', 'Gold ESP', false, function(v)
     Settings.GoldESP = v.Toggle
 end)
 
-local thicknessSlider = sector5.element('Slider', 'ESP Thickness', {default = {min = 1, max = 10, default = 2}}, function(v)
+local thicknessSlider = sector5.element('Slider', 'ESP Thickness', {min = 1, max = 10, default = 2}, function(v)
     Settings.ESPThickness = v.Slider
 end)
 
-local distanceSlider = sector3.element('Slider', 'ESP Distance', {default = {min = 100, max = 1000, default = 500}}, function(v)
+local distanceSlider = sector3.element('Slider', 'ESP Distance', {min = 100, max = 1000, default = 500}, function(v)
     Settings.ESPDistance = v.Slider
 end)
 
