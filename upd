@@ -1,0 +1,378 @@
+-- DOORS ESP Script using Criminality UI Library
+-- Author: itcps (adapted)
+-- Version: 3.3
+
+-- Load Criminality UI Library
+local library = loadstring(game:HttpGet('https://raw.githubusercontent.com/weakhoes/Roblox-UI-Libs/refs/heads/main/Criminality%20Lib/Criminality%20Lib%20Source.lua'))()
+
+-- Wait for game to load
+if game.Players.LocalPlayer and game.Players.LocalPlayer.PlayerGui:FindFirstChild("LoadingUI") and game.Players.LocalPlayer.PlayerGui.LoadingUI.Enabled then
+    print("[DOORS ESP] Waiting for game to load...")
+    repeat task.wait() until not game.Players.LocalPlayer.PlayerGui:FindFirstChild("LoadingUI") or not game.Players.LocalPlayer.PlayerGui.LoadingUI.Enabled
+end
+
+-- Variables
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- ESP Tables
+local ESPTable = {
+    Chest = {},
+    Door = {},
+    Entity = {},
+    Item = {},
+    HidingSpot = {},
+    Gold = {}
+}
+
+-- Entity Information
+local EntityTable = {
+    Names = {"BackdoorRush", "BackdoorLookman", "RushMoving", "AmbushMoving", "Eyes", "JeffTheKiller", "Dread", "A60", "A120"},
+    ShortNames = {
+        BackdoorRush = "Blitz",
+        JeffTheKiller = "Jeff The Killer",
+        RushMoving = "Rush",
+        AmbushMoving = "Ambush",
+        A60 = "A-60",
+        A120 = "A-120",
+        BackdoorLookman = "Lookman"
+    },
+    Colors = {
+        BackdoorRush = Color3.new(1, 0, 0),
+        RushMoving = Color3.new(1, 0, 0),
+        AmbushMoving = Color3.new(1, 0.5, 0),
+        Eyes = Color3.new(1, 1, 0),
+        JeffTheKiller = Color3.new(0.5, 0, 0.5),
+        A60 = Color3.new(1, 0, 1),
+        A120 = Color3.new(0.5, 0, 1),
+        BackdoorLookman = Color3.new(0, 1, 1)
+    }
+}
+
+-- Settings
+local Settings = {
+    ESPEnabled = false,
+    EntityESP = false,
+    ItemESP = false,
+    DoorESP = false,
+    ChestESP = false,
+    HidingSpotESP = false,
+    GoldESP = false,
+    ESPThickness = 2,
+    ESPDistance = 500,
+    ShowNames = true,
+    ShowDistance = true
+}
+
+-- Utility Functions
+local function GetShortName(name)
+    return EntityTable.ShortNames[name] or name
+end
+
+local function GetEntityColor(name)
+    return EntityTable.Colors[name] or Color3.new(1, 1, 1)
+end
+
+local function DistanceFromCharacter(object)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return math.huge end
+
+    local rootPart = character.HumanoidRootPart
+    local objectPosition = object:IsA("BasePart") and object.Position or object:GetPivot().Position
+
+    return (rootPart.Position - objectPosition).Magnitude
+end
+
+local function CreateESP(object, espType, color, text)
+    if not object then return end
+
+    local esp = Drawing.new("Box")
+    esp.Visible = false
+    esp.Color = color or Color3.new(1, 1, 1)
+    esp.Thickness = Settings.ESPThickness
+    esp.Transparency = 1
+    esp.Filled = false
+
+    local nameTag = Drawing.new("Text")
+    nameTag.Visible = false
+    nameTag.Color = color or Color3.new(1, 1, 1)
+    nameTag.Size = 20
+    nameTag.Center = true
+    nameTag.Outline = true
+    nameTag.OutlineColor = Color3.new(0, 0, 0)
+    nameTag.Text = text or object.Name
+
+    table.insert(ESPTable[espType], esp)
+    table.insert(ESPTable[espType], nameTag)
+
+    return esp, nameTag
+end
+
+local function RemoveESP(espType)
+    for _, esp in pairs(ESPTable[espType]) do
+        if esp and esp.Remove then
+            esp:Remove()
+        end
+    end
+    ESPTable[espType] = {}
+end
+
+local function UpdateESP()
+    for espType, espList in pairs(ESPTable) do
+        for i = 1, #espList, 2 do
+            local esp = espList[i]
+            local nameTag = espList[i + 1]
+
+            if esp and nameTag then
+                esp.Visible = false
+                nameTag.Visible = false
+            end
+        end
+    end
+end
+
+-- ESP Functions
+local function EntityESP(entity)
+    if not entity or not entity:FindFirstChild("PrimaryPart") then return end
+
+    local shortName = GetShortName(entity.Name)
+    local color = GetEntityColor(entity.Name)
+    local distance = DistanceFromCharacter(entity)
+
+    local displayText = shortName
+    if Settings.ShowDistance then
+        displayText = displayText .. " [" .. math.floor(distance) .. "m]"
+    end
+
+    local esp, nameTag = CreateESP(entity, "Entity", color, displayText)
+
+    if esp and nameTag then
+        esp.Visible = true
+        nameTag.Visible = true
+
+        local success, position = pcall(function()
+            return Camera:WorldToViewportPoint(entity:GetPivot().Position)
+        end)
+
+        if success and position.Z > 0 then
+            local size = entity.PrimaryPart.Size
+            local topLeft = Camera:WorldToViewportPoint((entity:GetPivot() * CFrame.new(-size.X/2, size.Y/2, -size.Z/2)).Position)
+            local bottomRight = Camera:WorldToViewportPoint((entity:GetPivot() * CFrame.new(size.X/2, -size.Y/2, size.Z/2)).Position)
+
+            esp.Size = Vector2.new(bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y)
+            esp.Position = Vector2.new(topLeft.X, topLeft.Y)
+            nameTag.Position = Vector2.new(topLeft.X + (bottomRight.X - topLeft.X) / 2, topLeft.Y - 25)
+        end
+    end
+end
+
+local function GenericESP(object, espType, color, displayName)
+    if not object or not object:IsA("BasePart") then return end
+
+    local distance = DistanceFromCharacter(object)
+    local displayText = displayName
+    if Settings.ShowDistance then
+        displayText = displayText .. " [" .. math.floor(distance) .. "m]"
+    end
+
+    local esp, nameTag = CreateESP(object, espType, color, displayText)
+
+    if esp and nameTag then
+        esp.Visible = true
+        nameTag.Visible = true
+
+        local success, position = pcall(function()
+            return Camera:WorldToViewportPoint(object.Position)
+        end)
+
+        if success and position.Z > 0 then
+            local size = object.Size
+            local topLeft = Camera:WorldToViewportPoint((object.CFrame * CFrame.new(-size.X/2, size.Y/2, -size.Z/2)).Position)
+            local bottomRight = Camera:WorldToViewportPoint((object.CFrame * CFrame.new(size.X/2, -size.Y/2, size.Z/2)).Position)
+
+            esp.Size = Vector2.new(bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y)
+            esp.Position = Vector2.new(topLeft.X, topLeft.Y)
+            nameTag.Position = Vector2.new(topLeft.X + (bottomRight.X - topLeft.X) / 2, topLeft.Y - 25)
+        end
+    end
+end
+
+-- UI Setup
+local window = library.new('DOORS ESP', 'DOORS ESP')
+
+-- Create Tabs
+local tab1 = window.new_tab('rbxassetid://4483345998')
+
+-- Create Sections
+local section1 = tab1.new_section('ESP Features')
+local section2 = tab1.new_section('Settings')
+
+-- Create Sectors
+local sector1 = section1.new_sector('Main ESP', 'Left')
+local sector2 = section1.new_sector('Additional ESP', 'Right')
+local sector3 = section2.new_sector('Controls', 'Left')
+local sector4 = section2.new_sector('Display Options', 'Right')
+
+-- Elements with correct syntax based on library source
+local masterESP = sector1.element('Toggle', 'Master ESP', {default = {Toggle = false}}, function(v)
+    Settings.ESPEnabled = v.Toggle
+    print("Master ESP:", v.Toggle)
+end)
+
+local entityESP = sector1.element('Toggle', 'Entity ESP', {default = {Toggle = false}}, function(v)
+    Settings.EntityESP = v.Toggle
+    print("Entity ESP:", v.Toggle)
+end)
+
+local itemESP = sector1.element('Toggle', 'Item ESP', {default = {Toggle = false}}, function(v)
+    Settings.ItemESP = v.Toggle
+    print("Item ESP:", v.Toggle)
+end)
+
+local doorESP = sector2.element('Toggle', 'Door ESP', {default = {Toggle = false}}, function(v)
+    Settings.DoorESP = v.Toggle
+    print("Door ESP:", v.Toggle)
+end)
+
+local chestESP = sector2.element('Toggle', 'Chest ESP', {default = {Toggle = false}}, function(v)
+    Settings.ChestESP = v.Toggle
+    print("Chest ESP:", v.Toggle)
+end)
+
+local hidingESP = sector2.element('Toggle', 'Hiding Spot ESP', {default = {Toggle = false}}, function(v)
+    Settings.HidingSpotESP = v.Toggle
+    print("Hiding Spot ESP:", v.Toggle)
+end)
+
+local goldESP = sector2.element('Toggle', 'Gold ESP', {default = {Toggle = false}}, function(v)
+    Settings.GoldESP = v.Toggle
+    print("Gold ESP:", v.Toggle)
+end)
+
+-- Control buttons
+local clearButton = sector3.element('Button', 'Clear All ESP', nil, function()
+    for espType in pairs(ESPTable) do
+        RemoveESP(espType)
+    end
+    print("[DOORS ESP] All ESP cleared!")
+end)
+
+-- Slider for thickness
+local thicknessSlider = sector3.element('Slider', 'ESP Thickness', {default = {min = 1, max = 10, default = 2}}, function(v)
+    Settings.ESPThickness = v.Slider
+    print("ESP Thickness:", v.Slider)
+end)
+
+-- Slider for distance
+local distanceSlider = sector3.element('Slider', 'ESP Distance', {default = {min = 100, max = 1000, default = 500}}, function(v)
+    Settings.ESPDistance = v.Slider
+    print("ESP Distance:", v.Slider)
+end)
+
+-- Display options
+local showNames = sector4.element('Toggle', 'Show Names', {default = {Toggle = true}}, function(v)
+    Settings.ShowNames = v.Toggle
+    print("Show Names:", v.Toggle)
+end)
+
+local showDistance = sector4.element('Toggle', 'Show Distance', {default = {Toggle = true}}, function(v)
+    Settings.ShowDistance = v.Toggle
+    print("Show Distance:", v.Toggle)
+end)
+
+-- Main Loop
+RunService.RenderStepped:Connect(function()
+    if not Settings.ESPEnabled then
+        UpdateESP()
+        return
+    end
+
+    UpdateESP()
+
+    -- Entity ESP
+    if Settings.EntityESP then
+        for _, entity in pairs(Workspace:GetChildren()) do
+            if entity:IsA("Model") and table.find(EntityTable.Names, entity.Name) then
+                local distance = DistanceFromCharacter(entity)
+                if distance <= Settings.ESPDistance then
+                    EntityESP(entity)
+                end
+            end
+        end
+    end
+
+    -- Item ESP
+    if Settings.ItemESP then
+        for _, item in pairs(Workspace:GetChildren()) do
+            if item:IsA("BasePart") and (item.Name:match("Item") or item.Name:match("Tool")) then
+                local distance = DistanceFromCharacter(item)
+                if distance <= Settings.ESPDistance then
+                    GenericESP(item, "Item", Color3.new(0, 1, 0), item.Name)
+                end
+            end
+        end
+    end
+
+    -- Door ESP
+    if Settings.DoorESP then
+        for _, door in pairs(Workspace:GetChildren()) do
+            if door:IsA("BasePart") and door.Name:match("Door") then
+                local distance = DistanceFromCharacter(door)
+                if distance <= Settings.ESPDistance then
+                    GenericESP(door, "Door", Color3.new(0, 0, 1), "Door")
+                end
+            end
+        end
+    end
+
+    -- Chest ESP
+    if Settings.ChestESP then
+        for _, chest in pairs(Workspace:GetChildren()) do
+            if chest:IsA("BasePart") and (chest.Name:match("Chest") or chest.Name:match("Box")) then
+                local distance = DistanceFromCharacter(chest)
+                if distance <= Settings.ESPDistance then
+                    GenericESP(chest, "Chest", Color3.new(1, 1, 0), "Chest")
+                end
+            end
+        end
+    end
+
+    -- Hiding Spot ESP
+    if Settings.HidingSpotESP then
+        for _, spot in pairs(Workspace:GetChildren()) do
+            if spot:IsA("BasePart") and (spot.Name:match("Wardrobe") or spot.Name:match("Locker") or spot.Name:match("Closet")) then
+                local distance = DistanceFromCharacter(spot)
+                if distance <= Settings.ESPDistance then
+                    GenericESP(spot, "HidingSpot", Color3.new(0, 1, 1), "Hiding Spot")
+                end
+            end
+        end
+    end
+
+    -- Gold ESP
+    if Settings.GoldESP then
+        for _, gold in pairs(Workspace:GetChildren()) do
+            if gold:IsA("BasePart") and gold.Name:match("Gold") then
+                local distance = DistanceFromCharacter(gold)
+                if distance <= Settings.ESPDistance then
+                    GenericESP(gold, "Gold", Color3.new(1, 1, 0), "Gold")
+                end
+            end
+        end
+    end
+end)
+
+-- Cleanup function
+local function Cleanup()
+    for espType in pairs(ESPTable) do
+        RemoveESP(espType)
+    end
+    print("[DOORS ESP] Script unloaded!")
+end
+
+game:BindToClose(Cleanup)
+
+print("[DOORS ESP Criminality] Script loaded successfully!")
