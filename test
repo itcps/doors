@@ -1,0 +1,62 @@
+local uiloader = loadstring(game:HttpGet("https://raw.githubusercontent.com/topitbopit/dollarware/main/library.lua"))()
+
+local ui = uiloader({
+    rounding = false,
+    theme = 'grape'
+})
+
+local win = ui.newWindow({
+    text = "doraware",
+    resize = false,
+    size = Vector2.new(550, 376),
+    position = nil
+})
+
+local visuals = win:addMenu({
+    text = 'Visuals'
+})
+do
+    local espsection = visuals:addSection({
+        text = 'ESP',
+        side = 'left',
+        showMinButton = true
+    })
+    do
+        local esptoggle = espsection:addToggle({
+            text = "ESP",
+            state = false,
+        })
+
+        esptoggle:bindToEvent('onToggle', function(newState)
+            ui.notify({
+                title = 'ESP',
+                message = 'ESP has been toggled to ' .. tostring(newState),
+                duration = 3,
+            })
+        end)
+
+        espsection:addColorPicker({
+            text = 'color'
+            color = Color3.fromRGB(255, 255, 255)
+        }, function(newValue)
+            print(newValue)
+        end)
+    end
+end
+
+local aboutmenu = win:addMenu({
+    text = 'About'
+})
+do
+    local aboutsection = aboutmenu:addSection({
+        text = 'About me',
+        side = 'auto',
+        showMinButton = false
+    })
+
+    do
+        aboutsection:addLabel({
+            text = 'discord: funcps'
+        })
+    end
+end
